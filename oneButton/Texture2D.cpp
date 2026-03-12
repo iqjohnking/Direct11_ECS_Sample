@@ -1,0 +1,447 @@
+﻿#include "Texture2D.h"
+
+using namespace std;
+using namespace DirectX::SimpleMath;
+
+//=======================================
+// 初期化処理
+//=======================================
+void Texture2D::Init()
+{
+	// 頂点データ
+	m_Vertices.resize(4);
+
+	m_Vertices[0].position = Vector3(-0.5f, 0.5f, 0);
+	m_Vertices[1].position = Vector3( 0.5f, 0.5f, 0);
+	m_Vertices[2].position = Vector3(-0.5f, -0.5f, 0);
+	m_Vertices[3].position = Vector3( 0.5f, -0.5f, 0);
+
+	m_Vertices[0].color = Color(1, 1, 1, 1);
+	m_Vertices[1].color = Color(1, 1, 1, 1);
+	m_Vertices[2].color = Color(1, 1, 1, 1);
+	m_Vertices[3].color = Color(1, 1, 1, 1);
+
+	m_Vertices[0].uv = Vector2(0, 0);
+	m_Vertices[1].uv = Vector2(1, 0);
+	m_Vertices[2].uv = Vector2(0, 1);
+	m_Vertices[3].uv = Vector2(1, 1);
+
+	// 頂点バッファ生成
+	m_VertexBuffer.Create(m_Vertices);
+
+	// インデックスバッファ生成
+	m_Indices.resize(4);
+
+	m_Indices[0] = 0;
+	m_Indices[1] = 1;
+	m_Indices[2] = 2;
+	m_Indices[3] = 3;
+
+	// インデックスバッファ生成
+	m_IndexBuffer.Create(m_Indices);
+
+	// シェーダオブジェクト生成
+	m_Shader.Create("shader/unlitTextureVS.hlsl", "shader/unlitTexturePS.hlsl");
+
+	// マテリアル情報取得
+	m_Material = std::make_unique<Material>();
+	MATERIAL mtrl;
+	mtrl.Diffuse = Color(1, 1, 1, 1);
+	mtrl.TextureEnable = true; // テクスチャを使うか否かのフラグ
+	m_Material->Create(mtrl);
+}
+
+//=======================================
+// 更新処理
+//=======================================
+void Texture2D::Update()
+{
+	if (m_AnimEnabled && m_CurrentClipIndex >= 0)
+	{
+		AnimClip& clip = m_AnimClips[m_CurrentClipIndex];
+
+		m_AnimTimer += 1;
+
+		if (m_AnimTimer >= clip.holdFrames)
+		{
+			m_AnimTimer = 0;
+
+			if (m_PlayBackward)
+			{
+				m_AnimFrame--;
+
+				if (m_AnimFrame < clip.startFrame)
+				{
+					if (m_PlayOnce)
+					{
+						m_AnimFrame = clip.startFrame;
+						m_AnimEnabled = false;
+					}
+					else
+					{
+						m_AnimFrame = clip.endFrame;
+					}
+				}
+			}
+			else
+			{
+				m_AnimFrame++;
+
+				if (m_AnimFrame > clip.endFrame)
+				{
+					if (m_PlayOnce)
+					{
+						m_AnimFrame = clip.endFrame;
+						m_AnimEnabled = false;
+					}
+					else
+					{
+						m_AnimFrame = clip.startFrame;
+					}
+				}
+			}
+		}
+
+		int col = m_AnimFrame % m_AnimCols;
+		int row = m_AnimFrame / m_AnimCols;
+
+		int cellX = col + 1;
+		int cellY = row + 1;
+
+		SetUV(
+			static_cast<float>(cellX),
+			static_cast<float>(cellY),
+			static_cast<float>(m_AnimCols),
+			static_cast<float>(m_AnimRows));
+	}
+}
+
+//=======================================
+// 描画処理
+//=======================================
+void Texture2D::Draw(Camera* cam)
+{
+	if (!isActive)
+	{
+		return;
+	}
+	//カメラを選択する
+	cam->SetCamera(1);
+
+	// 2D描画では深度を無効化して3Dオブジェクトを遮らない
+	//Renderer::SetDepthEnable(false);
+
+	// SRT情報作成
+	Matrix r = Matrix::CreateFromYawPitchRoll(m_Rotation.y, m_Rotation.x, m_Rotation.z);
+	Matrix t = Matrix::CreateTranslation(m_Position.x, m_Position.y, m_Position.z);
+	Matrix s = Matrix::CreateScale(m_Scale.x, m_Scale.y, m_Scale.z);
+
+	// ピボット(Pivot)対応：モデルローカル座標の前後平行移動を挟む
+	Matrix toPivot   = Matrix::CreateTranslation(-m_Pivot.x, -m_Pivot.y, -m_Pivot.z);
+	Matrix fromPivot = Matrix::CreateTranslation(m_Pivot.x, m_Pivot.y, m_Pivot.z);
+
+	// 新しいワールド行列：ピボットで移動 → スケール → 回転 → 元に戻す → 最後にオブジェクト位置を適用
+	Matrix worldmtx = toPivot * s * r * fromPivot * t;
+	Renderer::SetWorldMatrix(&worldmtx); // GPUにセット
+
+	// 描画処理
+	ID3D11DeviceContext* devicecontext = Renderer::GetDeviceContext();
+
+	devicecontext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	m_Shader.SetGPU();
+	m_VertexBuffer.SetGPU();
+	m_IndexBuffer.SetGPU();
+
+	m_Texture.SetGPU();
+	m_Material->SetGPU();
+
+	// UVの設定を指定
+	float u, v, uw, vh;
+
+
+	switch (repeatState)
+	{
+	case m_RepeatTexture::m_false:
+		u = m_NumU - 1;
+		v = m_NumV - 1;
+		uw = 1 / m_SplitX;
+		vh = 1 / m_SplitY;
+		break;
+
+	case m_RepeatTexture::m_true:
+		u = 0;
+		v = 0;
+		uw = m_Scale.x / m_Texture.GetWidth();
+		vh = m_Scale.y / m_Texture.GetHeight();
+		break;
+
+	case m_RepeatTexture::xOnly:
+		u = 0;
+		v = 0;
+		uw = m_Scale.x / m_Texture.GetWidth();
+		vh = 1 / m_SplitY;
+		break;
+
+	case m_RepeatTexture::yOnly:
+		u = 0;
+		v = 0;
+		uw = 1 / m_SplitX;
+		vh = m_Scale.y / m_Texture.GetHeight();
+		break;
+	}
+
+	// ----- 追加: 左右反転 -----
+	if (m_FlipX)
+	{
+		// 幅を負にし、開始Uを1セル右へずらす
+		// 分割モード(m_false)ではセル単位の幅(1/m_SplitX)を使用
+		// 反転時の開始Uは「現在セルの右端」になるため +uw 前提で負化
+
+		
+		u = u + 1;
+		uw = -uw;
+	}
+
+	if (m_FlipY)
+	{
+		// 幅を負にし、開始Uを1セル右へずらす
+		// 分割モード(m_false)ではセル単位の高(1/m_SplitY)を使用
+		// 反転時の開始Uは「現在セルの右端」になるため +uw 前提で負化
+		v= v + vh;
+		vh = -vh;
+	}
+	Renderer::SetUV(u, v, uw, vh);
+
+	devicecontext->DrawIndexed(
+		(UINT)m_Indices.size(),
+		0,
+		0);
+}
+
+//=======================================
+// 終了処理
+//=======================================
+void Texture2D::Uninit()
+{
+
+}
+
+// テクスチャを指定
+void Texture2D::SetTexture(const char* imgname)
+{
+	// テクスチャロード
+	bool sts = m_Texture.Load(imgname);
+	assert(sts == true);
+}
+
+// 位置を指定
+void Texture2D::SetPosition(const float& x, const float& y, const float& z)
+{
+	Vector3 p = { x, y, z };
+	SetPosition(p);
+}
+void Texture2D::SetPosition(const Vector3& pos)
+{
+	m_Position = pos;
+}
+
+// 角度を指定
+void Texture2D::SetRotation(const float& x, const float& y, const float& z)
+{
+	Vector3 r = { x, y, z };
+	SetRotation(r);
+}
+void Texture2D::SetRotation(const float& z)
+{
+	Vector3 r = { 0.0f, 0.0f, z };
+	SetRotation(r);
+}
+void Texture2D::SetRotation(const Vector3& rot)
+{
+	m_Rotation = rot * PI /180; // degree→radianに変換
+}
+
+void Texture2D::SetRotationRad(const float& x, const float& y, const float& z)
+{
+	Vector3 r = { x, y, z };
+	SetRotationRad(r);
+}
+void Texture2D::SetRotationRad(const Vector3& rot)
+{
+	m_Rotation = rot; // 已經是 rad，直接存
+}
+
+// 大きさを指定
+void Texture2D::SetScale(const float& x, const float& y, const float& z)
+{
+	Vector3 s = { x, y, z };
+	SetScale(s);
+}
+void Texture2D::SetScale(const Vector3& scl)
+{
+	m_Scale = scl;
+}
+
+// UV座標を指定
+void Texture2D::SetUV(const float& nu, const float& nv, const float& sx, const float& sy)
+{
+	m_NumU = nu;  
+	m_NumV = nv;
+	m_SplitX = sx; // X方向の分割数
+	m_SplitY = sy; // Y方向の分割数
+}
+
+void Texture2D::SetSpriteSheet(int cols, int rows)
+{
+	if (cols <= 0 || rows <= 0)
+		return;
+
+	m_AnimCols = cols;
+	m_AnimRows = rows;
+
+}
+
+void Texture2D::AddAnimClip(const std::string& name, int startFrame, int endFrame, int holdFrames)
+{
+	if (startFrame < 0 || endFrame < startFrame || holdFrames <= 0.0f)
+		return;
+
+	AnimClip clip;
+	clip.name = name;
+	clip.startFrame = startFrame;
+	clip.endFrame = endFrame;
+	clip.holdFrames = holdFrames;
+
+	m_AnimClips.push_back(clip);
+}
+
+void Texture2D::PlayAnim(const std::string& name)
+{
+	if (m_CurrentClipIndex >= 0 &&
+		m_AnimClips[m_CurrentClipIndex].name == name)
+	{
+		return;
+	}
+	for (size_t i = 0; i < m_AnimClips.size(); ++i)
+	{
+		if (m_AnimClips[i].name == name)
+		{
+			m_CurrentClipIndex = static_cast<int>(i);
+
+			const AnimClip& clip = m_AnimClips[m_CurrentClipIndex];
+
+			m_PlayOnce = false;
+			m_PlayBackward = false;
+
+			m_AnimFrame = clip.startFrame;
+			m_AnimTimer = 0;
+			m_AnimEnabled = true;
+
+			return;
+		}
+	}
+}
+
+
+void Texture2D::PlayAnim(const std::string& name, bool backward)
+{
+	if (m_CurrentClipIndex >= 0 &&
+		m_AnimClips[m_CurrentClipIndex].name == name &&
+		m_PlayBackward == backward)
+	{
+		return;
+	}
+	for (size_t i = 0; i < m_AnimClips.size(); ++i)
+	{
+		if (m_AnimClips[i].name == name)
+		{
+			m_CurrentClipIndex = static_cast<int>(i);
+
+			const AnimClip& clip = m_AnimClips[m_CurrentClipIndex];
+
+			m_PlayOnce = false;
+			m_PlayBackward = backward;
+			m_AnimFrame = backward ? clip.endFrame : clip.startFrame;
+			m_AnimTimer = 0;
+			m_AnimEnabled = true;
+
+			return;
+		}
+	}
+}
+
+void Texture2D::PlayAnimOnce(const std::string& name, bool backward)
+{
+	if (m_CurrentClipIndex >= 0 &&
+		m_AnimClips[m_CurrentClipIndex].name == name &&
+		m_PlayBackward == backward &&
+		m_PlayOnce)
+	{
+		return;
+	}
+	for (size_t i = 0; i < m_AnimClips.size(); ++i)
+	{
+		if (m_AnimClips[i].name == name)
+		{
+			m_CurrentClipIndex = static_cast<int>(i);
+
+			const AnimClip& clip = m_AnimClips[m_CurrentClipIndex];
+
+			m_PlayOnce = true;
+			m_PlayBackward = backward;
+			m_AnimFrame = backward ? clip.endFrame : clip.startFrame;
+			m_AnimTimer = 0;
+			m_AnimEnabled = true;
+
+			return;
+		}
+	}
+}
+
+
+void Texture2D::StopAnimation()
+{
+	m_AnimEnabled = false;
+	m_CurrentClipIndex = -1;
+	m_AnimFrame = 0;
+	m_AnimTimer = 0;
+	m_PlayBackward = false;
+	m_PlayOnce = false;
+}
+
+void Texture2D::PauseAnimation(bool pause)
+{
+	if (pause)
+	{
+		m_AnimEnabled = false;
+	}
+	else
+	{
+		if (m_CurrentClipIndex >= 0)
+		{
+			m_AnimEnabled = true;
+		}
+	}
+}
+
+void Texture2D::SetMulColor(const DirectX::SimpleMath::Color& c)
+{
+	if (!m_Material) return;
+
+	// Material::SetDiffuse は GPU に送らないので、必ず Update() する
+	m_Material->SetDiffuse(DirectX::XMFLOAT4(c.x, c.y, c.z, c.w));
+	m_Material->Update();
+}
+
+void Texture2D::SetBrightness(float b)
+{
+	// b は 0〜1 を想定（必要なら Clamp してもOK）
+	SetMulColor(DirectX::SimpleMath::Color(b, b, b, 1.0f));
+}
+
+void Texture2D::SetAlpha(float a)
+{
+	// 明るさはそのままで透明度だけ
+	SetMulColor(DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, a));
+}
