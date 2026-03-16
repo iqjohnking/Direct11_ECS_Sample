@@ -180,12 +180,15 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="utility.cpp" />
+    <ClCompile Include="World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="AssimpPerse.h" />
     <ClInclude Include="backGround.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Component.h" />
+    <ClInclude Include="Entity.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GolfBall.h" />
     <ClInclude Include="imgui\imconfig.h" />
@@ -220,6 +223,7 @@
     </ClInclude>
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="System.h" />
     <ClInclude Include="TestModel.h" />
     <ClInclude Include="TestPlane.h" />
     <ClInclude Include="Texture.h" />
@@ -230,6 +234,7 @@
     </ClInclude>
     <ClInclude Include="utility.h" />
     <ClInclude Include="VertexBuffer.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\common.hlsl">
