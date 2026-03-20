@@ -28,6 +28,9 @@
     <Filter Include="ecs">
       <UniqueIdentifier>{cec77b65-ac44-4fb2-bc51-cb7127feb43a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ecs\components">
+      <UniqueIdentifier>{2a31164b-9ffc-42b7-92a7-ac0d530cf1a7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -241,6 +244,27 @@
     </ClInclude>
     <ClInclude Include="World.h">
       <Filter>ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="BoxColliderComponent.h">
+      <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraComponent.h">
+      <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="DragComponent.h">
+      <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="GrappleComponent.h">
+      <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderComponent.h">
+      <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="RigidBodyComponent.h">
+      <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="TransformComponent.h">
+      <Filter>ecs\components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
