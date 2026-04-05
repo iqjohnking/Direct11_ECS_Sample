@@ -31,6 +31,12 @@
     <Filter Include="ecs\components">
       <UniqueIdentifier>{2a31164b-9ffc-42b7-92a7-ac0d530cf1a7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ecs\system_h">
+      <UniqueIdentifier>{e5d67f38-831c-4920-a09c-b022dca05f9b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ecs\system_cpp">
+      <UniqueIdentifier>{98ceb771-ec60-46fa-b17c-1171f57aa888}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -122,6 +128,24 @@
     </ClCompile>
     <ClCompile Include="World.cpp">
       <Filter>ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraSystem.cpp">
+      <Filter>ecs\system_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="CollisionSystem.cpp">
+      <Filter>ecs\system_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="InputSystem.cpp">
+      <Filter>ecs\system_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="LevelSystem.cpp">
+      <Filter>ecs\system_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="PhysicsSystem.cpp">
+      <Filter>ecs\system_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderSystem.cpp">
+      <Filter>ecs\system_cpp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -265,6 +289,24 @@
     </ClInclude>
     <ClInclude Include="TransformComponent.h">
       <Filter>ecs\components</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraSystem.h">
+      <Filter>ecs\system_h</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionSystem.h">
+      <Filter>ecs\system_h</Filter>
+    </ClInclude>
+    <ClInclude Include="InputSystem.h">
+      <Filter>ecs\system_h</Filter>
+    </ClInclude>
+    <ClInclude Include="LevelSystem.h">
+      <Filter>ecs\system_h</Filter>
+    </ClInclude>
+    <ClInclude Include="PhysicsSystem.h">
+      <Filter>ecs\system_h</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderSystem.h">
+      <Filter>ecs\system_h</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
